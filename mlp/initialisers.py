@@ -5,6 +5,7 @@ This module defines classes to initialise the parameters in a layer.
 """
 
 import numpy as np
+
 from mlp import DEFAULT_SEED
 
 
@@ -43,6 +44,9 @@ class UniformInit(object):
     def __call__(self, shape):
         return self.rng.uniform(low=self.low, high=self.high, size=shape)
 
+    def __repr__(self):
+        return f'UniformInit({self.low:.3f}, {self.high:.3f})'
+
 
 class NormalInit(object):
     """Random normal parameter initialiser."""
@@ -63,6 +67,10 @@ class NormalInit(object):
 
     def __call__(self, shape):
         return self.rng.normal(loc=self.mean, scale=self.std, size=shape)
+
+    def __repr__(self):
+        return f'NormalInit({self.mean:.3f}, {self.std:.3f})'
+
 
 class GlorotUniformInit(object):
     """Glorot and Bengio (2010) random uniform weights initialiser.

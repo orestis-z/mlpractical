@@ -1,15 +1,17 @@
 # -*- coding: utf-8 -*-
 """Model optimisers.
 
-This module contains objects implementing (batched) stochastic gradient descent
-based optimisation of models.
+This module contains objects implementing (batched) stochastic gradient
+descent based optimisation of models.
 """
 
-import time
 import logging
+import time
 from collections import OrderedDict
+
 import numpy as np
 import tqdm
+
 
 logger = logging.getLogger(__name__)
 
@@ -53,19 +55,18 @@ class Optimiser(object):
         """Do a single training epoch.
 
         This iterates through all batches in training dataset, for each
-        calculating the gradient of the estimated error given the batch with
-        respect to all the model parameters and then updates the model
-        parameters according to the learning rule.
+        calculating the gradient of the estimated error given the batch
+        with respect to all the model parameters and then updates the
+        model parameters according to the learning rule.
         """
-        with self.tqdm_progress(total=self.train_dataset.num_batches) as train_progress_bar:
-            train_progress_bar.set_description("Epoch Progress")
-            for inputs_batch, targets_batch in self.train_dataset:
-                activations = self.model.fprop(inputs_batch)
-                grads_wrt_outputs = self.error.grad(activations[-1], targets_batch)
-                grads_wrt_params = self.model.grads_wrt_params(
-                    activations, grads_wrt_outputs)
-                self.learning_rule.update_params(grads_wrt_params)
-                train_progress_bar.update(1)
+        for inputs_batch, targets_batch in self.train_dataset:
+            activations = self.model.fprop(inputs_batch)
+            grads_wrt_outputs = self.error.grad(
+                activations[-1], targets_batch)
+            grads_wrt_params = self.model.grads_wrt_params(
+                activations, grads_wrt_outputs)
+            self.learning_rule.update_params(grads_wrt_params)
+            # train_progress_bar.update(1)
 
     def eval_monitors(self, dataset, label):
         """Evaluates the monitors for the given dataset.
@@ -112,10 +113,10 @@ class Optimiser(object):
         """
         logger.info('Epoch {0}: {1:.1f}s to complete\n    {2}'.format(
             epoch, epoch_time,
-            ', '.join(['{0}={1:.2e}'.format(k, v) for (k, v) in stats.items()])
+            ', '.join(['{0}={1:.3e}'.format(k, v) for (k, v) in stats.items()])
         ))
 
-    def train(self, num_epochs, stats_interval=5):
+    def train(self, num_epochs, stats_interval=5, silent=True):
         """Trains a model for a set number of epochs.
 
         Args:
@@ -132,17 +133,19 @@ class Optimiser(object):
         start_train_time = time.time()
         run_stats = [list(self.get_epoch_stats().values())]
         with self.tqdm_progress(total=num_epochs) as progress_bar:
-            progress_bar.set_description("Experiment Progress")
+            progress_bar.set_description('Experiment Progress')
             for epoch in range(1, num_epochs + 1):
                 start_time = time.time()
                 self.do_training_epoch()
-                epoch_time = time.time()- start_time
+                epoch_time = time.time() - start_time
                 if epoch % stats_interval == 0:
                     stats = self.get_epoch_stats()
-                    self.log_stats(epoch, epoch_time, stats)
+                    if not silent:
+                        self.log_stats(epoch, epoch_time, stats)
                     run_stats.append(list(stats.values()))
                 progress_bar.update(1)
         finish_train_time = time.time()
         total_train_time = finish_train_time - start_train_time
-        return np.array(run_stats), {k: i for i, k in enumerate(stats.keys())}, total_train_time
-
+        return np.array(run_stats), {
+            k: i for i, k in enumerate(
+                stats.keys())}, total_train_time

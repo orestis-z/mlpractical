@@ -2,11 +2,9 @@
 """Training schedulers.
 
 This module contains classes implementing schedulers which control the
-evolution of learning rule hyperparameters (such as learning rate) over a
-training run.
+evolution of learning rule hyperparameters (such as learning rate) over
+a training run.
 """
-
-import numpy as np
 
 
 class ConstantLearningRateScheduler(object):

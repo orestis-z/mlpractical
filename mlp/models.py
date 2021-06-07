@@ -1,14 +1,17 @@
 # -*- coding: utf-8 -*-
 """Model definitions.
 
-This module implements objects encapsulating learnable models of input-output
-relationships. The model objects implement methods for forward propagating
-the inputs through the transformation(s) defined by the model to produce
-outputs (and intermediate states) and for calculating gradients of scalar
-functions of the outputs with respect to the model parameters.
+This module implements objects encapsulating learnable models of input-
+output relationships. The model objects implement methods for forward
+propagating the inputs through the transformation(s) defined by the
+model to produce outputs (and intermediate states) and for calculating
+gradients of scalar functions of the outputs with respect to the model
+parameters.
 """
+import numpy as np
 
-from mlp.layers import LayerWithParameters, StochasticLayer, StochasticLayerWithParameters
+from mlp.layers import (AffineLayer, LayerWithParameters, StochasticLayer,
+                        StochasticLayerWithParameters)
 
 
 class SingleLayerModel(object):
@@ -66,21 +69,29 @@ class SingleLayerModel(object):
 class MultipleLayerModel(object):
     """A model consisting of multiple layers applied sequentially."""
 
-    def __init__(self, layers):
+    def __init__(self, layers, regularizer=None, regularizer_lambda=0.01):
         """Create a new multiple layer model instance.
 
         Args:
             layers: List of the the layer objecst defining the model in the
                 order they should be applied from inputs to outputs.
         """
+        valid_regularizers = (None, 'L1', 'L2')
+        assert regularizer in valid_regularizers, f'Regularizer must be one of {valid_regularizers}'
         self.layers = layers
+        self.regularizer = regularizer
+        self.regularizer_lambda = regularizer_lambda
 
     @property
     def params(self):
         """A list of all of the parameters of the model."""
         params = []
         for layer in self.layers:
-            if isinstance(layer, LayerWithParameters) or isinstance(layer, StochasticLayerWithParameters):
+            if isinstance(
+                    layer,
+                    LayerWithParameters) or isinstance(
+                    layer,
+                    StochasticLayerWithParameters):
                 params += layer.params
         return params
 
@@ -98,15 +109,27 @@ class MultipleLayerModel(object):
         activations = [inputs]
         for i, layer in enumerate(self.layers):
             if evaluation:
-                if issubclass(type(self.layers[i]), StochasticLayer) or issubclass(type(self.layers[i]),
-                                                                                   StochasticLayerWithParameters):
-                    current_activations = self.layers[i].fprop(activations[i], stochastic=False)
+                if issubclass(
+                    type(
+                        self.layers[i]),
+                    StochasticLayer) or issubclass(
+                    type(
+                        self.layers[i]),
+                        StochasticLayerWithParameters):
+                    current_activations = self.layers[i].fprop(
+                        activations[i], stochastic=False)
                 else:
                     current_activations = self.layers[i].fprop(activations[i])
             else:
-                if issubclass(type(self.layers[i]), StochasticLayer) or issubclass(type(self.layers[i]),
-                                                                                   StochasticLayerWithParameters):
-                    current_activations = self.layers[i].fprop(activations[i], stochastic=True)
+                if issubclass(
+                    type(
+                        self.layers[i]),
+                    StochasticLayer) or issubclass(
+                    type(
+                        self.layers[i]),
+                        StochasticLayerWithParameters):
+                    current_activations = self.layers[i].fprop(
+                        activations[i], stochastic=True)
                 else:
                     current_activations = self.layers[i].fprop(activations[i])
             activations.append(current_activations)
@@ -128,12 +151,29 @@ class MultipleLayerModel(object):
         """
         grads_wrt_params = []
         for i, layer in enumerate(self.layers[::-1]):
-            inputs = activations[-i - 2]
-            outputs = activations[-i - 1]
+            inputs = activations[-(i + 2)]
+            outputs = activations[-(i + 1)]
             grads_wrt_inputs = layer.bprop(inputs, outputs, grads_wrt_outputs)
-            if isinstance(layer, LayerWithParameters) or isinstance(layer, StochasticLayerWithParameters):
-                grads_wrt_params += layer.grads_wrt_params(
+            if isinstance(
+                    layer,
+                    LayerWithParameters) or isinstance(
+                    layer,
+                    StochasticLayerWithParameters):
+                grads_wrt_params_i = layer.grads_wrt_params(
                     inputs, grads_wrt_outputs)[::-1]
+                # Add regularizer gradient in case of Affine Layer
+                if isinstance(layer, AffineLayer):
+                    if self.regularizer == 'L1':
+                        grads_wrt_params_i[0] += self.regularizer_lambda * \
+                            np.sign(layer.biases)
+                        grads_wrt_params_i[1] += self.regularizer_lambda * \
+                            np.sign(layer.weights)
+                    elif self.regularizer == 'L2':
+                        grads_wrt_params_i[0] += 2 * \
+                            self.regularizer_lambda * layer.biases
+                        grads_wrt_params_i[1] += 2 * \
+                            self.regularizer_lambda * layer.weights
+                grads_wrt_params += grads_wrt_params_i
             grads_wrt_outputs = grads_wrt_inputs
         return grads_wrt_params[::-1]
 

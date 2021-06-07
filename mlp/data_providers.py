@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 """Data providers.
 
-This module provides classes for loading datasets and iterating over batches of
-data points.
+This module provides classes for loading datasets and iterating over
+batches of data points.
 """
 
-import pickle
-import gzip
-import numpy as np
 import os
+
+import numpy as np
+
 from mlp import DEFAULT_SEED
 
 
@@ -87,10 +87,10 @@ class DataProvider(object):
     def __iter__(self):
         """Implements Python iterator interface.
 
-        This should return an object implementing a `next` method which steps
-        through a sequence returning one element at a time and raising
-        `StopIteration` when at the end of the sequence. Here the object
-        returned is the DataProvider itself.
+        This should return an object implementing a `next` method which
+        steps through a sequence returning one element at a time and
+        raising `StopIteration` when at the end of the sequence. Here
+        the object returned is the DataProvider itself.
         """
         return self
 
@@ -132,6 +132,7 @@ class DataProvider(object):
         targets_batch = self.targets[batch_slice]
         self._curr_batch += 1
         return inputs_batch, targets_batch
+
 
 class MNISTDataProvider(DataProvider):
     """Data provider for MNIST handwritten digit images."""
@@ -199,11 +200,12 @@ class MNISTDataProvider(DataProvider):
         one_of_k_targets[range(int_targets.shape[0]), int_targets] = 1
         return one_of_k_targets
 
+
 class EMNISTDataProvider(DataProvider):
     """Data provider for EMNIST handwritten digit images."""
 
     def __init__(self, which_set='train', batch_size=100, max_num_batches=-1,
-                 shuffle_order=True, rng=None, flatten=False):
+                 shuffle_order=True, rng=None):
         """Create a new EMNIST data provider object.
 
         Args:
@@ -238,10 +240,7 @@ class EMNISTDataProvider(DataProvider):
         print(loaded.keys())
         inputs, targets = loaded['inputs'], loaded['targets']
         inputs = inputs.astype(np.float32)
-        if flatten:
-            inputs = np.reshape(inputs, newshape=(-1, 28*28))
-        else:
-            inputs = np.reshape(inputs, newshape=(-1, 1, 28, 28))
+        inputs = np.reshape(inputs, newshape=(-1, 28 * 28))
         inputs = inputs / 255.0
         # pass the loaded data to the parent class __init__
         super(EMNISTDataProvider, self).__init__(
@@ -318,6 +317,7 @@ class MetOfficeDataProvider(DataProvider):
         targets = windowed[:, -1]
         super(MetOfficeDataProvider, self).__init__(
             inputs, targets, batch_size, max_num_batches, shuffle_order, rng)
+
 
 class CCPPDataProvider(DataProvider):
 

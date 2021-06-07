@@ -25,7 +25,7 @@ class SumOfSquaredDiffsError(object):
         Returns:
             Scalar cost function value.
         """
-        return 0.5 * np.mean(np.sum((outputs - targets)**2, axis=1))
+        return np.mean(np.sum((outputs - targets)**2, axis=1)) * 0.5
 
     def grad(self, outputs, targets):
         """Calculates gradient of error function with respect to outputs.
@@ -144,6 +144,13 @@ class CrossEntropyError(object):
 class CrossEntropySoftmaxError(object):
     """Multi-class cross entropy error with Softmax applied to outputs."""
 
+    def __init__(self, model):
+        self.model = model
+
+    def _get_weights(self):
+        return np.concatenate(
+            [param_layer.flatten() for param_layer in self.model.params])
+
     def __call__(self, outputs, targets):
         """Calculates error function given a batch of outputs and targets.
 
@@ -154,9 +161,18 @@ class CrossEntropySoftmaxError(object):
         Returns:
             Scalar error function value.
         """
-        normOutputs = outputs - outputs.max(-1)[:, None]
-        logProb = normOutputs - np.log(np.sum(np.exp(normOutputs), axis=-1)[:, None])
-        return -np.mean(np.sum(targets * logProb, axis=1))
+
+        normalized_outputs = outputs - outputs.max(-1)[:, None]
+        log_prob = normalized_outputs - \
+            np.log(np.sum(np.exp(normalized_outputs), axis=-1)[:, None])
+        cost = -np.mean(np.sum(targets * log_prob, axis=1))
+        if self.model.regularizer == 'L1':
+            cost += self.model.regularizer_lambda * \
+                np.linalg.norm(self._get_weights(), 1)
+        elif self.model.regularizer == 'L2':
+            cost += self.model.regularizer_lambda * \
+                np.linalg.norm(self._get_weights(), 2)
+        return cost
 
     def grad(self, outputs, targets):
         """Calculates gradient of error function with respect to outputs.
@@ -168,6 +184,7 @@ class CrossEntropySoftmaxError(object):
         Returns:
             Gradient of error function with respect to outputs.
         """
+
         probs = np.exp(outputs - outputs.max(-1)[:, None])
         probs /= probs.sum(-1)[:, None]
         return (probs - targets) / outputs.shape[0]
